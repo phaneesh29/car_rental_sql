@@ -15,7 +15,7 @@ testDBConnection();
 const app = express();
 
 app.use(cors({
-    origin: [CORS_ORIGIN],
+    origin: [CORS_ORIGIN, 'http://localhost:8081', 'http://10.245.224.182:8081'],
     credentials: true
 }))
 

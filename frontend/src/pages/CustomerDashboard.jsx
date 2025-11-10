@@ -245,6 +245,14 @@ const CustomerDashboard = () => {
                     <p className="text-sm text-gray-400">
                       <span className="text-gray-500">Rate:</span> ₹{r.car_rental_rate}/day
                     </p>
+                    
+                    <p className="text-sm text-gray-400">
+                      <span className="text-gray-500">Rental Date:</span> {new Date(r.rental_date).toLocaleDateString()}
+                    </p>
+                    
+                    <p className="text-sm text-gray-400">
+                      <span className="text-gray-500">Return Date:</span> {new Date(r.return_date).toLocaleDateString()}
+                    </p>
                     <p className="text-sm text-gray-400">
                       <span className="text-gray-500">Duration:</span>{' '}
                       {r.rental_duration ? `${r.rental_duration} days` : 'N/A'}
