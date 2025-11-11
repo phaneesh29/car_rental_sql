@@ -69,7 +69,7 @@ const CustomerSidebar = () => {
         <div className="flex items-center gap-2">
           <CarFront className="text-red-500 w-6 h-6" />
           <h1 className="hidden md:block text-xl font-bold text-red-500 tracking-wide">
-            MyCar
+            DriveEasy
           </h1>
         </div>
       </div>
