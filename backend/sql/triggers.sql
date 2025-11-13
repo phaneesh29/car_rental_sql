@@ -16,8 +16,8 @@ BEGIN
     FROM car 
     WHERE car_id = NEW.car_id;
 
-    -- Calculate duration in days
-    SET duration = DATEDIFF(NEW.return_date, NEW.rental_date);
+    -- Calculate duration in days (inclusive of both start and end dates)
+    SET duration = DATEDIFF(NEW.return_date, NEW.rental_date) + 1;
     IF duration <= 0 THEN
         SET duration = 1;
     END IF;

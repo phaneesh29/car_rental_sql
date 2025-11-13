@@ -7,10 +7,12 @@ import {
   PlusCircle,
   CreditCard,
   RefreshCcw,
+  Calendar,
 } from 'lucide-react'
 import api from '../api/axios'
 import { useNavigate } from 'react-router'
 import CustomerSidebar from '../components/CustomerSidebar'
+import CarCalendar from '../components/CarCalendar'
 
 const CustomerDashboard = () => {
   const navigate = useNavigate()
@@ -19,6 +21,8 @@ const CustomerDashboard = () => {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
+  const [showCalendar, setShowCalendar] = useState(false)
+  const [selectedCarForCalendar, setSelectedCarForCalendar] = useState(null)
   const [rentalData, setRentalData] = useState({
     carId: '',
     rental_date: '',
@@ -50,6 +54,26 @@ const CustomerDashboard = () => {
   useEffect(() => {
     fetchAll()
   }, [])
+
+  // 🔹 Open calendar for selected car
+  const openCalendar = () => {
+    if (!rentalData.carId) {
+      setMessage({ text: 'Please select a car first.', type: 'error' })
+      return
+    }
+    const selectedCar = cars.find(c => c.car_id === parseInt(rentalData.carId))
+    setSelectedCarForCalendar(selectedCar)
+    setShowCalendar(true)
+  }
+
+  // 🔹 Handle date selection from calendar
+  const handleDateSelectFromCalendar = (dates) => {
+    setRentalData({
+      ...rentalData,
+      rental_date: dates.rental_date,
+      return_date: dates.return_date
+    })
+  }
 
   // 🔹 Handle rental booking
   const handleRental = async (e) => {
@@ -157,7 +181,7 @@ const CustomerDashboard = () => {
               <PlusCircle size={20} /> Rent a Car
             </h2>
 
-            <form onSubmit={handleRental} className="grid md:grid-cols-3 gap-4">
+            <form onSubmit={handleRental} className="space-y-4">
               <select
                 name="carId"
                 value={rentalData.carId}
@@ -177,28 +201,77 @@ const CustomerDashboard = () => {
                 )}
               </select>
 
-              <input
-                type="date"
-                name="rental_date"
-                value={rentalData.rental_date}
-                onChange={(e) => setRentalData({ ...rentalData, rental_date: e.target.value })}
-                className="bg-gray-800 p-3 rounded-lg outline-none focus:ring-2 focus:ring-red-600"
-                required
-              />
+              {/* Selected Dates Display */}
+              {rentalData.rental_date && rentalData.return_date && rentalData.carId && (
+                <div className="bg-gray-800 border border-gray-700 rounded-lg p-4">
+                  <p className="text-sm text-gray-400 mb-2">Booking Summary:</p>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-gray-200">
+                      <span className="text-sm">Rental Period:</span>
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold">
+                          {rentalData.rental_date.split('-').reverse().join('/')}
+                        </span>
+                        <span className="text-gray-500">→</span>
+                        <span className="font-semibold">
+                          {rentalData.return_date.split('-').reverse().join('/')}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-gray-200">
+                      <span className="text-sm">Duration:</span>
+                      <span className="font-semibold">
+                        {(() => {
+                          const start = new Date(rentalData.rental_date + 'T00:00:00')
+                          const end = new Date(rentalData.return_date + 'T00:00:00')
+                          const days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1
+                          return days || 1
+                        })()} days
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-gray-200">
+                      <span className="text-sm">Rate per day:</span>
+                      <span className="font-semibold">
+                        ₹{cars.find(c => c.car_id === parseInt(rentalData.carId))?.car_rental_rate || 0}
+                      </span>
+                    </div>
+                    <div className="border-t border-gray-700 pt-2 mt-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-lg font-semibold text-red-400">Total Amount:</span>
+                        <span className="text-2xl font-bold text-red-500">
+                          ₹{(() => {
+                            const start = new Date(rentalData.rental_date + 'T00:00:00')
+                            const end = new Date(rentalData.return_date + 'T00:00:00')
+                            const days = Math.round((end - start) / (1000 * 60 * 60 * 24)) + 1
+                            const rate = cars.find(c => c.car_id === parseInt(rentalData.carId))?.car_rental_rate || 0
+                            return (days * rate).toLocaleString()
+                          })()}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
 
-              <input
-                type="date"
-                name="return_date"
-                value={rentalData.return_date}
-                onChange={(e) => setRentalData({ ...rentalData, return_date: e.target.value })}
-                className="bg-gray-800 p-3 rounded-lg outline-none focus:ring-2 focus:ring-red-600"
-                required
-              />
+              {/* Calendar Button */}
+              <button
+                type="button"
+                onClick={openCalendar}
+                disabled={!rentalData.carId}
+                className={`w-full py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                  !rentalData.carId
+                    ? 'bg-gray-700 cursor-not-allowed'
+                    : 'bg-purple-600 hover:bg-purple-700'
+                }`}
+              >
+                <Calendar size={20} />
+                View Calendar & Select Dates
+              </button>
 
               <button
                 type="submit"
                 disabled={saving}
-                className={`md:col-span-3 mt-2 py-3 rounded-lg font-semibold transition-all ${
+                className={`w-full py-3 rounded-lg font-semibold transition-all ${
                   saving ? 'bg-gray-700' : 'bg-red-600 hover:bg-red-700'
                 }`}
               >
@@ -283,6 +356,16 @@ const CustomerDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Calendar Modal */}
+      {showCalendar && selectedCarForCalendar && (
+        <CarCalendar
+          carId={selectedCarForCalendar.car_id}
+          carName={`${selectedCarForCalendar.car_make} ${selectedCarForCalendar.car_model}`}
+          onClose={() => setShowCalendar(false)}
+          onDateSelect={handleDateSelectFromCalendar}
+        />
+      )}
     </div>
   )
 }

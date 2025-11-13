@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { addRentalController, completeMyPaymentController, customerLoginController, customerLogoutController, customerProfileController, customerRegisterController, customerUpdateController, deleteMyRentalController, getAvailableCarsController, getMyPaymentsController, getMyRentalByIdController, getMyRentalHistoryController, getPaymentDetailsController } from "../controllers/customer.controller.js";
+import { addRentalController, completeMyPaymentController, customerLoginController, customerLogoutController, customerProfileController, customerRegisterController, customerUpdateController, deleteMyRentalController, getAvailableCarsController, getCarBookedDatesController, getMyPaymentsController, getMyRentalByIdController, getMyRentalHistoryController, getPaymentDetailsController } from "../controllers/customer.controller.js";
 import { customerAuthMiddleware } from "../middlewares/customerAuth.middleware.js";
 
 const router = Router();
@@ -11,6 +11,7 @@ router.get("/profile", customerAuthMiddleware, customerProfileController)
 router.patch("/update", customerAuthMiddleware, customerUpdateController)
 
 router.get("/get/cars", customerAuthMiddleware, getAvailableCarsController)
+router.get("/get/car/:carId/booked-dates", customerAuthMiddleware, getCarBookedDatesController)
 
 router.post("/add/rental", customerAuthMiddleware, addRentalController)
 router.get("/get/rentals", customerAuthMiddleware, getMyRentalHistoryController)

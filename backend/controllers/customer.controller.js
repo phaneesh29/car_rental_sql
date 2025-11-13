@@ -141,11 +141,49 @@ export const customerUpdateController = async (req, res) => {
 
 export const getAvailableCarsController = async (req, res) => {
     try {
-        const [cars] = await pool.query("SELECT * FROM all_employeecar_details WHERE car_status = 'available' AND deleted = FALSE");
+        const [cars] = await pool.query("SELECT * FROM all_employeecar_details WHERE car_status != 'maintenance' AND deleted = FALSE");
         if (!cars || cars.length === 0) {
             return res.status(404).json({ message: "No available cars found." });
         }
         res.status(200).json({ message: "Available cars retrieved successfully.", length: cars.length, data: cars });
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Server Error" });
+    }
+}
+
+export const getCarBookedDatesController = async (req, res) => {
+    try {
+        const { carId } = req.params;
+        
+        if (!carId) {
+            return res.status(400).json({ message: "Car ID is required." });
+        }
+
+        const carIdInt = parseInt(carId, 10);
+        if (isNaN(carIdInt) || carIdInt < 0) {
+            return res.status(400).json({ message: "Invalid car ID." });
+        }
+
+        // Get all active (not completed) rentals for this car
+        const [rentals] = await pool.query(
+            `SELECT rental_id, rental_date, return_date, customer_id 
+             FROM rental 
+             WHERE car_id = ? 
+             AND is_completed = FALSE 
+             ORDER BY rental_date ASC`,
+            [carIdInt]
+        );
+
+        res.status(200).json({ 
+            message: "Booked dates retrieved successfully.",
+            carId: carIdInt,
+            bookedPeriods: rentals.map(r => ({
+                rental_id: r.rental_id,
+                start_date: r.rental_date,
+                end_date: r.return_date,
+                is_own_booking: r.customer_id === req.customer.cust_id
+            }))
+        });
     } catch (error) {
         res.status(500).json({ message: error.message || "Server Error" });
     }
@@ -186,14 +224,33 @@ export const addRentalController = async (req, res) => {
 
         conn = await pool.getConnection();
         await conn.beginTransaction();
-        const [carRows] = await conn.query("SELECT * FROM all_employeecar_details WHERE car_id = ? AND car_status = 'available' AND deleted = FALSE", [carIdInt]);
+        
+        // Check if car exists and is not in maintenance
+        const [carRows] = await conn.query("SELECT * FROM all_employeecar_details WHERE car_id = ? AND car_status != 'maintenance' AND deleted = FALSE", [carIdInt]);
         if (carRows.length === 0) {
             await conn.rollback();
             return res.status(404).json({ message: "Car not found or not available." });
         }
 
+        // Check for date conflicts with existing rentals
+        const [conflictingRentals] = await conn.query(
+            `SELECT rental_id FROM rental 
+             WHERE car_id = ? 
+             AND is_completed = FALSE 
+             AND (
+                 (rental_date <= ? AND return_date > ?) OR
+                 (rental_date < ? AND return_date >= ?) OR
+                 (rental_date >= ? AND return_date <= ?)
+             )`,
+            [carIdInt, returnDateFormatted, rentalDateFormatted, returnDateFormatted, returnDateFormatted, rentalDateFormatted, returnDateFormatted]
+        );
+
+        if (conflictingRentals.length > 0) {
+            await conn.rollback();
+            return res.status(400).json({ message: "Car is already booked for the selected dates. Please choose different dates." });
+        }
+
         await conn.query("INSERT INTO rental (car_id, customer_id, rental_date, return_date) VALUES (?, ?, ?, ?)", [carIdInt, customer_id, rentalDateFormatted, returnDateFormatted]);
-        await conn.query("UPDATE car SET status = 'rented' WHERE car_id = ?", [carIdInt]);
         await conn.commit();
         res.status(201).json({ message: "Rental added successfully." });
 
@@ -273,7 +330,6 @@ export const deleteMyRentalController = async (req, res) => {
         }
 
         await conn.query("DELETE FROM rental WHERE rental_id = ? AND customer_id = ?", [rentalIdInt, customer_id]);
-        await conn.query("UPDATE car SET status = 'available' WHERE car_id = ?", [rental.car_id]);
         await conn.commit();
         res.status(200).json({ message: "Rental deleted successfully." });
 
@@ -344,7 +400,6 @@ export const completeMyPaymentController = async (req, res) => {
         await conn.query("INSERT INTO payment (rental_id, amount, method, payment_date,status) VALUES (?, ?, ?, NOW(),?)", [rentalIdInt, amountFloat, method.toLowerCase(), 'completed']);
 
         await conn.query("UPDATE rental SET is_completed = TRUE WHERE rental_id = ?", [rentalIdInt]);
-        await conn.query("UPDATE car SET status = 'available' WHERE car_id = ?", [rental.car_id]);
 
         await conn.commit();
         res.status(200).json({ message: "Payment completed and rental marked as completed." });
