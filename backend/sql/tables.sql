@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS Branch (
+CREATE TABLE IF NOT EXISTS branch (
     branch_id INT AUTO_INCREMENT PRIMARY KEY,
     branch_name VARCHAR(100) NOT NULL UNIQUE,
     street VARCHAR(150),
@@ -7,7 +7,7 @@ CREATE TABLE IF NOT EXISTS Branch (
     zip VARCHAR(20)
 );
 
-CREATE TABLE IF NOT EXISTS Employee (
+CREATE TABLE IF NOT EXISTS employee (
     employee_id INT AUTO_INCREMENT PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
@@ -16,27 +16,27 @@ CREATE TABLE IF NOT EXISTS Employee (
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255),
     branch_id INT,
-    FOREIGN KEY (branch_id) REFERENCES Branch (branch_id) ON DELETE SET NULL ON UPDATE CASCADE
+    FOREIGN KEY (branch_id) REFERENCES branch (branch_id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS EmployeeAddress (
+CREATE TABLE IF NOT EXISTS employee_address (
     address_id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT NOT NULL,
     street VARCHAR(100),
     city VARCHAR(50),
     state VARCHAR(50),
     zip VARCHAR(10),
-    FOREIGN KEY (employee_id) REFERENCES Employee (employee_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (employee_id) REFERENCES employee (employee_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS EmployeePhone (
+CREATE TABLE IF NOT EXISTS employee_phone (
     employee_id INT,
     phone_num VARCHAR(20),
     PRIMARY KEY (employee_id, phone_num),
-    FOREIGN KEY (employee_id) REFERENCES Employee (employee_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (employee_id) REFERENCES employee (employee_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS Car (
+CREATE TABLE IF NOT EXISTS car (
     car_id INT AUTO_INCREMENT PRIMARY KEY,
     branch_id INT,
     year YEAR,
@@ -49,20 +49,20 @@ CREATE TABLE IF NOT EXISTS Car (
         'maintenance'
     ) NOT NULL DEFAULT 'available',
     rental_rate DECIMAL(10, 2) NOT NULL,
-    FOREIGN KEY (branch_id) REFERENCES Branch (branch_id) ON DELETE SET NULL ON UPDATE CASCADE
+    FOREIGN KEY (branch_id) REFERENCES branch (branch_id) ON DELETE SET NULL ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS Service (
+CREATE TABLE IF NOT EXISTS service (
     service_id INT AUTO_INCREMENT PRIMARY KEY,
     car_id INT NOT NULL,
     service_date DATE,
     detail VARCHAR(255),
     is_completed BOOLEAN DEFAULT FALSE,
     cost DECIMAL(10, 2),
-    FOREIGN KEY (car_id) REFERENCES Car (car_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (car_id) REFERENCES car (car_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS Customer (
+CREATE TABLE IF NOT EXISTS customer (
     cust_id INT AUTO_INCREMENT PRIMARY KEY,
     licence_num VARCHAR(50) UNIQUE,
     f_name VARCHAR(50) NOT NULL,
@@ -73,24 +73,24 @@ CREATE TABLE IF NOT EXISTS Customer (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS CustomerAddress (
+CREATE TABLE IF NOT EXISTS customer_address (
     address_id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT,
     street VARCHAR(100),
     city VARCHAR(50),
     state VARCHAR(50),
     zip VARCHAR(10),
-    FOREIGN KEY (customer_id) REFERENCES Customer (cust_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (customer_id) REFERENCES customer (cust_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS CustomerPhone (
+CREATE TABLE IF NOT EXISTS customer_phone (
     cust_id INT,
     phone_num VARCHAR(20),
     PRIMARY KEY (cust_id, phone_num),
-    FOREIGN KEY (cust_id) REFERENCES Customer (cust_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (cust_id) REFERENCES customer (cust_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS Rental (
+CREATE TABLE IF NOT EXISTS rental (
     rental_id INT AUTO_INCREMENT PRIMARY KEY,
     car_id INT,
     customer_id INT,
@@ -99,36 +99,36 @@ CREATE TABLE IF NOT EXISTS Rental (
     rental_date DATE,
     return_date DATE,
     is_completed BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (car_id) REFERENCES Car (car_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (customer_id) REFERENCES Customer (cust_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (car_id) REFERENCES car (car_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (customer_id) REFERENCES customer (cust_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS Payment (
+CREATE TABLE IF NOT EXISTS payment (
     pay_id INT AUTO_INCREMENT PRIMARY KEY,
     rental_id INT UNIQUE,
     amount DECIMAL(10, 2),
     payment_date DATE,
     method ENUM('upi', 'card', 'cash') NOT NULL,
     status ENUM('pending', 'completed') NOT NULL,
-    FOREIGN KEY (rental_id) REFERENCES Rental (rental_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (rental_id) REFERENCES rental (rental_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS EmployeeCar (
+CREATE TABLE IF NOT EXISTS employee_car (
     empcar_id INT AUTO_INCREMENT PRIMARY KEY,
     employee_id INT,
     car_id INT,
     date_assigned DATE,
     deleted BOOLEAN DEFAULT FALSE,
-    FOREIGN KEY (employee_id) REFERENCES Employee (employee_id) ON DELETE CASCADE ON UPDATE CASCADE,
-    FOREIGN KEY (car_id) REFERENCES Car (car_id) ON DELETE CASCADE ON UPDATE CASCADE
+    FOREIGN KEY (employee_id) REFERENCES employee (employee_id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (car_id) REFERENCES car (car_id) ON DELETE CASCADE ON UPDATE CASCADE
 );
 
 CREATE OR REPLACE VIEW all_customer_details AS
 SELECT c.cust_id, c.licence_num, c.email, c.f_name, c.l_name, ca.street, ca.city, ca.state, ca.zip, cp.phone_num
 FROM
     customer AS c
-    JOIN customeraddress AS ca ON c.cust_id = ca.customer_id
-    JOIN customerphone AS cp ON c.cust_id = cp.cust_id;
+    JOIN customer_address AS ca ON c.cust_id = ca.customer_id
+    JOIN customer_phone AS cp ON c.cust_id = cp.cust_id;
 
 CREATE OR REPLACE VIEW all_employee_details AS
 SELECT
@@ -149,8 +149,8 @@ SELECT
 FROM
     employee AS e
     JOIN branch AS b ON e.branch_id = b.branch_id
-    JOIN employeeaddress AS ea ON e.employee_id = ea.employee_id
-    JOIN employeephone AS ep ON e.employee_id = ep.employee_id;
+    JOIN employee_address AS ea ON e.employee_id = ea.employee_id
+    JOIN employee_phone AS ep ON e.employee_id = ep.employee_id;
 
 CREATE OR REPLACE VIEW all_car_details AS
 SELECT
@@ -190,7 +190,7 @@ SELECT
     c.branch_id AS car_branch_id,
     c.branch_name AS car_branch_name
 FROM
-    employeecar AS ec
+    employee_car AS ec
     JOIN all_employee_details AS e ON ec.employee_id = e.employee_id
     JOIN all_car_details AS c ON ec.car_id = c.car_id;
 

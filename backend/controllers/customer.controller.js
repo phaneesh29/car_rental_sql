@@ -25,8 +25,8 @@ export const customerRegisterController = async (req, res) => {
         const [result] = await conn.query("INSERT INTO customer (licence_num, f_name, l_name, email, password_hash) VALUES (?, ?, ?, ?, ?)", [licenseNumber, fName, lName, email, hashedPassword]);
         const customerId = result.insertId;
 
-        await conn.query("INSERT INTO customeraddress (customer_id, street, city, state, zip) VALUES (?, ?, ?, ?, ?)", [customerId, street, city, state, zip]);
-        await conn.query("INSERT INTO customerphone (cust_id, phone_num) VALUES (?, ?)", [customerId, phoneNumber]);
+        await conn.query("INSERT INTO customer_address (customer_id, street, city, state, zip) VALUES (?, ?, ?, ?, ?)", [customerId, street, city, state, zip]);
+        await conn.query("INSERT INTO customer_phone (cust_id, phone_num) VALUES (?, ?)", [customerId, phoneNumber]);
 
         await conn.commit();
         res.status(201).json({ message: "Customer registered successfully." });
@@ -103,13 +103,13 @@ export const customerUpdateController = async (req, res) => {
             if (!street?.trim() || !city?.trim() || !state?.trim() || !zip?.trim()) {
                 return res.status(400).json({ message: "All address fields are required." });
             }
-            await pool.query("UPDATE customeraddress SET street = ?, city = ?, state = ?, zip = ? WHERE customer_id = ?", [street, city, state, zip, customer_id]);
+            await pool.query("UPDATE customer_address SET street = ?, city = ?, state = ?, zip = ? WHERE customer_id = ?", [street, city, state, zip, customer_id]);
             return res.status(200).json({ message: "Address information updated successfully." });
         } else if (updateType == 'phone') {
             if (!phoneNumber?.trim()) {
                 return res.status(400).json({ message: "Phone number is required." });
             }
-            await pool.query("UPDATE customerphone SET phone_num = ? WHERE cust_id = ?", [phoneNumber, customer_id]);
+            await pool.query("UPDATE customer_phone SET phone_num = ? WHERE cust_id = ?", [phoneNumber, customer_id]);
             return res.status(200).json({ message: "Phone number updated successfully." });
         } else if (updateType == 'password') {
             if (!oldPassword?.trim() || !newPassword?.trim()) {

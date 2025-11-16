@@ -34,8 +34,8 @@ export const employeeRegisterController = async (req, res) => {
         const [result] = await conn.query("INSERT INTO employee (first_name, last_name, role, email, password_hash, branch_id) VALUES (?, ?, ?, ?, ?, ?)", [fName, lName, role, email, hashedPassword, branchId]);
         const employeeId = result.insertId;
 
-        await conn.query("INSERT INTO employeeaddress (employee_id, street, city, state, zip) VALUES (?, ?, ?, ?, ?)", [employeeId, street, city, state, zip]);
-        await conn.query("INSERT INTO employeephone (employee_id, phone_num) VALUES (?, ?)", [employeeId, phoneNumber]);
+        await conn.query("INSERT INTO employee_address (employee_id, street, city, state, zip) VALUES (?, ?, ?, ?, ?)", [employeeId, street, city, state, zip]);
+        await conn.query("INSERT INTO employee_phone (employee_id, phone_num) VALUES (?, ?)", [employeeId, phoneNumber]);
 
         await conn.commit();
         res.status(201).json({ message: "Employee registered successfully." });
@@ -125,13 +125,13 @@ export const employeeUpdateController = async (req, res) => {
             if (!street?.trim() || !city?.trim() || !state?.trim() || !zip?.trim()) {
                 return res.status(400).json({ message: "All address fields are required." });
             }
-            await pool.query("UPDATE employeeaddress SET street = ?, city = ?, state = ?, zip = ? WHERE employee_id = ?", [street.trim(), city.trim(), state.trim(), zip.trim(), employeeId]);
+            await pool.query("UPDATE employee_address SET street = ?, city = ?, state = ?, zip = ? WHERE employee_id = ?", [street.trim(), city.trim(), state.trim(), zip.trim(), employeeId]);
             return res.status(200).json({ message: "Address information updated successfully." });
         } else if (updateType === 'phone') {
             if (!phoneNumber?.trim()) {
                 return res.status(400).json({ message: "Phone number is required." });
             }
-            await pool.query("UPDATE employeephone SET phone_num = ? WHERE employee_id = ?", [phoneNumber.trim(), employeeId]);
+            await pool.query("UPDATE employee_phone SET phone_num = ? WHERE employee_id = ?", [phoneNumber.trim(), employeeId]);
             return res.status(200).json({ message: "Phone number updated successfully." });
         } else if (updateType === 'rolestatus') {
             if (!role?.trim() || !status?.trim()) {
@@ -331,10 +331,10 @@ export const employeeDeleteController = async (req, res) => {
         conn = await pool.getConnection();
         await conn.beginTransaction();        
 
-        const [employeeCars] = await conn.query("SELECT * FROM employeecar WHERE employee_id = ? AND deleted = FALSE", [id]);
+        const [employeeCars] = await conn.query("SELECT * FROM employee_car WHERE employee_id = ? AND deleted = FALSE", [id]);
         if (employeeCars.length > 0) {
-            await conn.query("UPDATE car SET status = 'available' WHERE car_id IN (SELECT car_id FROM employeecar WHERE employee_id = ? AND deleted = FALSE)", [id]);
-            await conn.query("DELETE FROM rental WHERE car_id IN (SELECT car_id FROM employeecar WHERE employee_id = ? AND deleted = FALSE)", [id]);
+            await conn.query("UPDATE car SET status = 'available' WHERE car_id IN (SELECT car_id FROM employee_car WHERE employee_id = ? AND deleted = FALSE)", [id]);
+            await conn.query("DELETE FROM rental WHERE car_id IN (SELECT car_id FROM employee_car WHERE employee_id = ? AND deleted = FALSE)", [id]);
         }
         const [result] = await conn.query("DELETE FROM employee WHERE employee_id = ?", [id]);
         if (result.affectedRows === 0) {
@@ -440,7 +440,7 @@ export const deleteCarByIdController = async (req, res) => {
         conn = await pool.getConnection();
         await conn.beginTransaction();
 
-        const [employeeRows] = await conn.query("SELECT employee_id FROM employeecar WHERE car_id = ?", [id]);
+        const [employeeRows] = await conn.query("SELECT employee_id FROM employee_car WHERE car_id = ?", [id]);
         if (employeeRows.length > 0) {
             await conn.query("UPDATE employee SET status = 'not_working' WHERE employee_id = ?", [employeeRows[0].employee_id]);
 
@@ -474,7 +474,7 @@ export const getNotWorkingEmployeeController = async (req, res) => {
 
 export const getAvailableCarsController = async (req, res) => {
     try {
-        const [cars] = await pool.query("SELECT c.car_id, c.year,c.make,c.model,c.reg_num,c.status,c.rental_rate,c.branch_id,c.branch_name,c.branch_city FROM all_car_details AS c LEFT JOIN employeecar AS ec ON c.car_id = ec.car_id AND ec.deleted = FALSE WHERE ec.car_id IS NULL AND c.status = 'available'");
+        const [cars] = await pool.query("SELECT c.car_id, c.year,c.make,c.model,c.reg_num,c.status,c.rental_rate,c.branch_id,c.branch_name,c.branch_city FROM all_car_details AS c LEFT JOIN employee_car AS ec ON c.car_id = ec.car_id AND ec.deleted = FALSE WHERE ec.car_id IS NULL AND c.status = 'available'");
         if (cars.length === 0) {
             return res.status(200).json({ message: "No available cars found.", data: [] });
         }
@@ -516,12 +516,12 @@ export const addEmployeeCarController = async (req, res) => {
             await conn.rollback();
             return res.status(400).json({ message: "Employee and Car must belong to the same branch." });
         }
-        const [existing] = await conn.query("SELECT * FROM employeecar WHERE (employee_id = ? OR car_id = ?) AND deleted = FALSE", [empId, carID]);
+        const [existing] = await conn.query("SELECT * FROM employee_car WHERE (employee_id = ? OR car_id = ?) AND deleted = FALSE", [empId, carID]);
         if (existing.length > 0) {
             await conn.rollback();
             return res.status(409).json({ message: "Either the employee is already assigned a car or the car is already assigned to an employee." });
         }
-        await conn.query("INSERT INTO employeecar (employee_id, car_id, date_assigned) VALUES (?, ?, CURDATE())", [empId, carID]);
+        await conn.query("INSERT INTO employee_car (employee_id, car_id, date_assigned) VALUES (?, ?, CURDATE())", [empId, carID]);
         await conn.query("UPDATE employee SET status = 'working' WHERE employee_id = ?", [empId]);
         await conn.commit();
         res.status(201).json({ message: `Employee #${empId} assigned to Car #${carID} successfully.` });
@@ -561,13 +561,13 @@ export const removeEmployeeCarController = async (req, res) => {
         conn = await pool.getConnection();
         await conn.beginTransaction();
 
-        const [employeeRows] = await conn.query("SELECT * FROM employeecar WHERE employee_id = ? AND car_id = ? AND deleted = FALSE", [empId, carID]);
+        const [employeeRows] = await conn.query("SELECT * FROM employee_car WHERE employee_id = ? AND car_id = ? AND deleted = FALSE", [empId, carID]);
         if (employeeRows.length === 0) {
             await conn.rollback();
             return res.status(404).json({ message: "No such employee-car assignment found." });
         }
 
-        const [result] = await conn.query("UPDATE employeecar SET deleted = TRUE WHERE employee_id = ? AND car_id = ?", [empId, carID]);
+        const [result] = await conn.query("UPDATE employee_car SET deleted = TRUE WHERE employee_id = ? AND car_id = ?", [empId, carID]);
         if (result.affectedRows === 0) {
             await conn.rollback();
             return res.status(404).json({ message: "No such employee-car assignment found." });
@@ -617,11 +617,11 @@ export const addCarServiceRecordController = async (req, res) => {
         await conn.query("INSERT INTO service (car_id, service_date, detail, cost) VALUES (?, ?, ?, ?)", [carId, serviceDate, detail.trim(), serviceCost]);
         await conn.query("UPDATE car SET status = 'maintenance' WHERE car_id = ?", [carId]);
 
-        const [empCarRows] = await conn.query("SELECT * FROM employeecar WHERE car_id = ? AND deleted = FALSE", [carId]);
+        const [empCarRows] = await conn.query("SELECT * FROM employee_car WHERE car_id = ? AND deleted = FALSE", [carId]);
         if (empCarRows.length > 0) {
 
             await conn.query("UPDATE employee SET status = 'not_working' WHERE employee_id = ?", [empCarRows[0].employee_id]);
-            await conn.query("UPDATE employeecar SET deleted = TRUE WHERE car_id = ? AND employee_id = ?", [carId, empCarRows[0].employee_id]);
+            await conn.query("UPDATE employee_car SET deleted = TRUE WHERE car_id = ? AND employee_id = ?", [carId, empCarRows[0].employee_id]);
         }
         await conn.commit();
         res.status(201).json({ message: "Service record added successfully." });
